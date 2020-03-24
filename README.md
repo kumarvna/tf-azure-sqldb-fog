@@ -1,4 +1,4 @@
-# Creating Geo-Replicated Azure SQL Database with an auto-failover group using Terraform
+# Creating Geo-Replicated Azure SQL Database with auto-failover group using Terraform
 [![Github](https://img.shields.io/badge/Github%20-Repository-brightgreen.svg?style=flat)](https://github.com/kumarvna/tf-azure-sqldb-fog.git)
 
 In this post, we are going to learn how to use Terraform to create an Azure SQL Database and then extend the Terraform template to create a geo-replicated database with an auto-failover group.
