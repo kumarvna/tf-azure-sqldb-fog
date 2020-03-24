@@ -11,8 +11,8 @@ resource "azurerm_resource_group" "iib_rg01" {
 
 locals {
   tags = {
-    "ApplicationName" = "Insurance-in-a-Box"
-    "Approver"        = "kumaraswamy.vithanala@tieto.com"
+    "ApplicationName" = "MytestApplication"
+    "Approver"        = "abcd@me.com"
     "BusinessUnit"    = "Finance Serivces"
     "CostCenter"      = var.costcenter_id
     "Environment"     = var.environment
