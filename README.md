@@ -1,4 +1,5 @@
 # Creating Geo-Replicated Azure SQL Database with auto-failover group using Terraform
+
 [![Github](https://img.shields.io/badge/Github%20-Repository-brightgreen.svg?style=flat)](https://github.com/kumarvna/tf-azure-sqldb-fog.git)
 
 In this post, we are going to learn how to use Terraform to create an Azure SQL Database and then extend the Terraform template to create a geo-replicated database with an auto-failover group.
@@ -7,7 +8,7 @@ In this post, we are going to learn how to use Terraform to create an Azure SQL 
 
 Microsoft Azure offers different types of business continuity solutions for their SQL database. One of these solutions is Geo-Replication that provides an asynchronous database copy. You can store this copy in the same or different regions. You can setup up to four readable database copies. In the documentation of Microsoft notes, the recovery point objective (RPO is the maximum acceptable amount of data loss measured in time) is less than 5 seconds. If we want to automate and make (users will not affect) failover mechanism transparent, we have to create the auto-failover group.
 
-![https://docs.microsoft.com/en-us/azure/sql-database/media/sql-database-auto-failover-group/auto-failover-group.png](https://docs.microsoft.com/en-us/azure/sql-database/media/sql-database-auto-failover-group/auto-failover-group.png)
+![enter image description here](https://docs.microsoft.com/en-us/azure/sql-database/media/sql-database-auto-failover-group/auto-failover-group.png)
 
 ## Failover group (FOG)
 
@@ -94,7 +95,7 @@ locals {
 }
 ```
 
-Now, create file name vnet.tf to add vNet, subnet and storage account declaration.
+Now, create file name `vnet.tf` to add vNet, subnet and storage account declaration.
 
 ```
 $ touch vnet.tf
@@ -200,7 +201,7 @@ resource "azurerm_storage_account" "iibstoreacc" {
   enable_https_traffic_only = true
 }
 ```
-Now we need to make sure that we have a SQL Server defined.
+Now that the requirements are in place, we can now create Azure SQL Servers definition.
 
 ```
 resource "azurerm_sql_server" "iibdb_server01" {
@@ -245,8 +246,7 @@ resource "azurerm_sql_firewall_rule" "iibdb_fw01" {
  end_ip_address                = "0.0.0.0"
  }
 ```
-Now that the requirements are in place, we can get into creating an Azure SQL Database. We are using already declared storage account to store the audit and TDP logs. 
-
+Next create Azure SQL Database on primary database server. We are using already declared storage account to store the audit and TDP logs. 
 ```
 resource "azurerm_sql_database" "iibdb_sqldb01" {
  name                           = var.db_name
@@ -267,3 +267,231 @@ resource "azurerm_sql_database" "iibdb_sqldb01" {
  }
 }
 ```
+
+Next step is to Create a failover group of databases on a collection of Azure SQL servers.
+
+```
+resource "azurerm_sql_failover_group" "sql-failovergrp" {
+ name                         = "sqldb-failover-group01"
+ resource_group_name          = azurerm_resource_group.iib_rg01.name
+ server_name                  = azurerm_sql_server.iibdb_server01.name
+ databases                    = [azurerm_sql_database.iibdb_sqldb01.id]
+ partner_servers {
+   id = azurerm_sql_server.iibdb_server02.id
+ }
+ read_write_endpoint_failover_policy {
+   mode           = "Automatic"
+   grace_minutes  = 60
+ }
+}
+```
+
+## All the changes together
+Here is the template which should look like with all the configuration. You can also look at it on Github [here](https://github.com/kumarvna/tf-azure-sqldb-fog/blob/master/sqldb.tf) 
+
+```
+resource "azurerm_sql_server" "iibdb_server01" {
+  name                          = var.db_server_name01
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.iib_rg01.name
+  version                       = var.db_version
+  administrator_login           = var.db_admin_login
+  administrator_login_password  = var.db_admin_pass
+  tags                          = local.tags
+  extended_auditing_policy {
+      storage_account_access_key = azurerm_storage_account.iibstoreacc.primary_access_key
+      storage_endpoint = azurerm_storage_account.iibstoreacc.primary_blob_endpoint
+      retention_in_days = 30
+  }
+}
+
+resource "azurerm_sql_server" "iibdb_server02" {
+  name                          = var.db_server_name02
+  location                      = var.db_secondary_location
+  resource_group_name           = azurerm_resource_group.iib_rg01.name
+  version                       = var.db_version
+  administrator_login           = var.db_admin_login
+  administrator_login_password  = var.db_admin_pass
+  tags                          = local.tags
+  extended_auditing_policy {
+      storage_account_access_key = azurerm_storage_account.iibstoreacc.primary_access_key
+      storage_endpoint = azurerm_storage_account.iibstoreacc.primary_blob_endpoint
+      retention_in_days = 30
+  }
+}
+
+resource "azurerm_sql_firewall_rule" "iibdb_fw01" {
+ name                          = "sqldb-fwrule-001"
+ resource_group_name           = azurerm_resource_group.iib_rg01.name
+ server_name                   = azurerm_sql_server.iibdb_server01.name
+ start_ip_address              = "0.0.0.0"
+ end_ip_address                = "0.0.0.0"
+ }
+
+resource "azurerm_sql_database" "iibdb_sqldb01" {
+ name                           = var.db_name
+ resource_group_name            = azurerm_resource_group.iib_rg01.name
+ location                       = var.location
+ server_name                    = azurerm_sql_server.iibdb_server01.name
+ tags                           = local.tags
+ edition                        = "Standard"
+ requested_service_objective_name = "S1"
+
+ threat_detection_policy {
+    state                      = "Enabled"
+    storage_endpoint           = azurerm_storage_account.iibstoreacc.primary_blob_endpoint
+    storage_account_access_key = azurerm_storage_account.iibstoreacc.primary_access_key
+    disabled_alerts            = ["Sql_Injection"]
+    retention_days             = 30
+    email_addresses            = var.storage_alert_emailid
+ }
+}
+
+resource "azurerm_sql_failover_group" "sql-failovergrp" {
+ name                         = "sqldb-failover-group01"
+ resource_group_name          = azurerm_resource_group.iib_rg01.name
+ server_name                  = azurerm_sql_server.iibdb_server01.name
+ databases                    = [azurerm_sql_database.iibdb_sqldb01.id]
+ partner_servers {
+   id = azurerm_sql_server.iibdb_server02.id
+ }
+ read_write_endpoint_failover_policy {
+   mode           = "Automatic"
+   grace_minutes  = 60
+ }
+depends_on  = [azurerm_sql_server.iibdb_server02]
+}
+```
+
+Let’s create a variable file to pass those variables into all tf files we created so far.
+
+```
+$ touch terraform.tfvars
+```
+Now let's open the terraform.tfvars file define all variables. You can also look at it on Github [here](https://github.com/kumarvna/tf-azure-sqldb-fog/blob/master/terraform.tfvars) 
+
+```
+resource_group_name = "rg-iib-demo-001"
+location = "northeurope"
+db_secondary_location="westeurope"
+environment = "Development"
+costcenter_id = "Cloud-Division"
+project_name = "MyTestProject"
+vnet_name = "vnet-iib-northeurope-001"
+vnet_address_space = ["10.0.0.0/16"]
+app_subnet = "snet-iibapp-northeurope-001"
+app_subnet_prefix = "10.0.2.0/24"
+db_subnet = "snet-iibdb-northeurope-001"
+db_subnet_prefix = "10.0.3.0/24"
+gateway_subnet = "snet-bastionvm-northeurope-001"
+gateway_subnet_prefix = "10.0.1.0/24"
+db_server_name01 = "sqldbserver-i2iapp-dev-01"
+db_server_name02 = "sqldbserver-i2iapp-dev-02"
+db_name = "sqldbi2iapp"
+db_version = "12.0"
+db_admin_login = "masterdoe"
+db_admin_pass = "LtKBrRTZ3k8gJfgD"
+storage_alert_emailid = ["abcd@me.com"]
+```
+We can validate if our template syntax is correctly defined. The first step is to initialize Terraform to get the required modules.
+
+```
+$ terraform init
+
+Initializing the backend...
+
+Initializing provider plugins...
+- Checking for available provider plugins...
+- Downloading plugin for provider "azurerm" (hashicorp/azurerm) 2.2.0...
+
+The following providers do not have any version constraints in configuration,
+so the latest version was installed.
+
+To prevent automatic upgrades to new major versions that may contain breaking
+changes, it is recommended to add version = "..." constraints to the
+corresponding provider blocks in configuration, with the constraint strings
+suggested below.
+
+* provider.azurerm: version = "~> 2.2"
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+
+Now let's validate the terraform syntax we crated.
+
+```
+$ terraform validate
+Success! The configuration is valid.
+```
+
+Now that it is validated and successful, we need to login to our Azure Account to execute against it.
+
+One of the unique features of Terraform is that it creates a plan, sort of like an execution plan of the resources. When you enter *`terraform Plan`* in the command prompt, it will list out all the resources it will deploy.
+Let’s execute our plan and see what will be created.
+
+```
+$ terraform plan
+Refreshing Terraform state in-memory prior to plan...
+The refreshed state will be used to calculate this plan, but will not be
+persisted to local or remote state storage.
+
+
+------------------------------------------------------------------------
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+Plan: 15 to add, 0 to change, 0 to destroy.
+
+------------------------------------------------------------------------
+```
+
+The plan shows it will be creating 15 resources. it looks ok to me, let's execute the plan. You will be prompted if you would like to proceed and type yes if you do.
+
+```
+$  terraform apply
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+Plan: 15 to add, 0 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+Apply complete! Resources: 15 added, 0 changed, 0 destroyed.
+```
+
+That’s about it. This post intended to get you to create Azure SQL DB using Terraform. We started with a basic example and expanded upon it to build out a geo-replicated database using an auto-failover group. There are a lot of inventive techniques accomplish this as well.
+
+Thanks for reading. Please let me know on this repo’s GitHub, workplace, LinkedIn what you thought about this post.
+
+*- Kumar*
+
+-----------------------
+## Getting Started with Terrafom & Documentation
+
+If you're new to Terraform and want to get started creating infrastructure, please checkout our [Getting Started](https://learn.hashicorp.com/terraform/azure/install_az) guide, available on the [Terraform website](https://www.terraform.io/).
+
+All documentation is available on the Terraform website:
+
+[Introduction](https://www.terraform.io/intro/index.html)
+
+[Documentation](https://www.terraform.io/docs/index.html)
