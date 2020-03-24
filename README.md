@@ -4,6 +4,19 @@
 
 In this post, we are going to learn how to use Terraform to create an Azure SQL Database and then extend the Terraform template to create a geo-replicated database with an auto-failover group.
 
+-----------------------
+## Getting Started with Terrafom
+
+If you're new to Terraform and want to get started creating infrastructure, please checkout our [Getting Started](https://learn.hashicorp.com/terraform/azure/install_az) guide, available on the [Terraform website](https://www.terraform.io/).
+
+All documentation is available on the Terraform website:
+
+[Introduction](https://www.terraform.io/intro/index.html)
+
+[Documentation](https://www.terraform.io/docs/index.html)
+
+-----------------------
+
 ## Azure SQL Geo-Replication and Failover Groups
 
 Microsoft Azure offers different types of business continuity solutions for their SQL database. One of these solutions is Geo-Replication that provides an asynchronous database copy. You can store this copy in the same or different regions. You can setup up to four readable database copies. In the documentation of Microsoft notes, the recovery point objective (RPO is the maximum acceptable amount of data loss measured in time) is less than 5 seconds. If we want to automate and make (users will not affect) failover mechanism transparent, we have to create the auto-failover group.
@@ -478,20 +491,12 @@ Do you want to perform these actions?
 
 Apply complete! Resources: 15 added, 0 changed, 0 destroyed.
 ```
+## Conclusion
 
-That’s about it. This post intended to get you to create Azure SQL DB using Terraform. We started with a basic example and expanded upon it to build out a geo-replicated database using an auto-failover group. There are a lot of inventive techniques accomplish this as well.
+This post intended to get you to create Azure SQL DB using Terraform. We started with a basic example and expanded upon it to build out a geo-replicated database using an auto-failover group. There are a lot of inventive techniques accomplish this as well. Next time, we will discuss creating Private Link for Azure SQL Database and make it available to all apps within the VPC.
 
 Thanks for reading. Please let me know on this repo’s GitHub, workplace, LinkedIn what you thought about this post.
 
 *- Kumar*
 
------------------------
-## Getting Started with Terrafom & Documentation
 
-If you're new to Terraform and want to get started creating infrastructure, please checkout our [Getting Started](https://learn.hashicorp.com/terraform/azure/install_az) guide, available on the [Terraform website](https://www.terraform.io/).
-
-All documentation is available on the Terraform website:
-
-[Introduction](https://www.terraform.io/intro/index.html)
-
-[Documentation](https://www.terraform.io/docs/index.html)
