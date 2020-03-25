@@ -248,7 +248,7 @@ resource "azurerm_sql_server" "iibdb_server02" {
 }
 ```
 
-ow we need to add a SQL Server firewall rule to allow Azure services to connect to this database. This is not done by default when using Terraform.  Add following declaration to enable the rule.
+Now we need to add a SQL Server firewall rule to allow Azure services to connect to this database. This is not done by default when using Terraform.  Add following declaration to enable the rule.
 
 ```
 resource "azurerm_sql_firewall_rule" "iibdb_fw01" {
