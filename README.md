@@ -7,7 +7,7 @@ In this post, we are going to learn how to use Terraform to create an Azure SQL 
 -----------------------
 ## Getting Started with Terrafom
 
-If you're new to Terraform and want to get started creating infrastructure, please checkout our [Getting Started](https://learn.hashicorp.com/terraform/azure/install_az) guide, available on the [Terraform website](https://www.terraform.io/).
+If you're new to Terraform and want to get started creating infrastructure, please checkout [Getting Started](https://learn.hashicorp.com/terraform/azure/install_az) guide, available on the [Terraform website](https://www.terraform.io/).
 
 All documentation is available on the Terraform website:
 
